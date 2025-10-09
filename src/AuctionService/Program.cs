@@ -2,6 +2,7 @@ using AuctionService.Consumers;
 using AuctionService.Data;
 using Contracts;
 using MassTransit;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -27,15 +28,24 @@ builder.Services.AddMassTransit(x =>
     x.AddConsumersFromNamespaceContaining<AuctionCreatedFaultConsumer>();
 
     x.SetEndpointNameFormatter(new KebabCaseEndpointNameFormatter("auction", false));
-    
+
     x.UsingRabbitMq((context, cfg) =>
     {
         cfg.ConfigureEndpoints(context);
     });
 });
 
-var app = builder.Build();
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.Authority = builder.Configuration["IdentityServiceURL"];
+        options.RequireHttpsMetadata = false;
+        options.TokenValidationParameters.ValidateAudience = false;
+        options.TokenValidationParameters.NameClaimType = "username";
+    });
 
+var app = builder.Build();
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
